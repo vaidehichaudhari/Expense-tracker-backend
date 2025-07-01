@@ -26,6 +26,24 @@ exports.getTransactions = async (req, res) => {
   }
 };
 
+exports.getTransactionById = async (req, res) => {
+  try {
+    const transaction = await Transaction.findOne({
+      _id: req.params.id,
+      userId: req.user
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ msg: 'Transaction not found' });
+    }
+
+    res.status(200).json(transaction);
+  } catch (err) {
+    res.status(500).json({ msg: 'Error fetching transaction' });
+  }
+};
+
+
 exports.updateTransaction = async (req, res) => {
   try {
     const updated = await Transaction.findOneAndUpdate(
