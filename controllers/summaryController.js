@@ -3,53 +3,61 @@ const Transaction = require('../models/transactionModel');
 // Total Balance, Income, Expense
 exports.getOverview = async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user });
+    const transactions = await Transaction.find(); // 👈 all data
 
-    const income = transactions
-      .filter(t => t.type === 'Income')
-      .reduce((sum, t) => sum + t.amount, 0);
+    let income = 0, expense = 0;
 
-    const expense = transactions
-      .filter(t => t.type === 'Expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const balance = income - expense;
-
-    res.json({ balance, income, expense });
-  } catch (err) {
-    res.status(500).json({ msg: 'Error calculating overview' });
-  }
-};
-
-// Expenses by Category
-exports.getCategoryBreakdown = async (req, res) => {
-  try {
-    const transactions = await Transaction.find({ userId: req.user, type: 'Expense' });
-
-    const categoryTotals = {};
-
-    transactions.forEach((t) => {
-      if (!categoryTotals[t.category]) {
-        categoryTotals[t.category] = 0;
-      }
-      categoryTotals[t.category] += t.amount;
+    transactions.forEach((txn) => {
+      if (txn.type === 'Income') income += txn.amount;
+      else if (txn.type === 'Expense') expense += txn.amount;
     });
 
-    res.json(categoryTotals);
+    res.json({
+      success: true,
+      data: {
+        income,
+        expense,
+        balance: income - expense,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ msg: 'Error generating category breakdown' });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.getCategoryBreakdown = async (req, res) => {
+   try {
+    const transactions = await Transaction.find(); // 👉 gets all transactions
+
+    const categoryMap = {};
+
+    transactions.forEach((txn) => {
+      if (txn.type === 'Expense') {
+        categoryMap[txn.category] = (categoryMap[txn.category] || 0) + txn.amount;
+      }
+    });
+
+    const categories = Object.keys(categoryMap);
+    const amounts = Object.values(categoryMap);
+
+    res.json({ success: true, data: { categories, amounts } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+
+};
+
 
 // Monthly Summary (income vs expense per month)
 exports.getMonthlySummary = async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user });
+
+    const transactions = await Transaction.find();
 
     const summary = {};
 
     transactions.forEach((t) => {
-      const month = new Date(t.date).toISOString().slice(0, 7); // format: YYYY-MM
+      const month = new Date(t.date).toISOString().slice(0, 7); // YYYY-MM format
 
       if (!summary[month]) {
         summary[month] = { income: 0, expense: 0 };
@@ -62,8 +70,20 @@ exports.getMonthlySummary = async (req, res) => {
       }
     });
 
-    res.json(summary);
+    // Convert summary object to arrays for frontend chart
+    const months = Object.keys(summary).sort();
+    const income = months.map((month) => summary[month].income);
+    const expense = months.map((month) => summary[month].expense);
+
+    res.json({
+      success: true,
+      data: {
+        months,
+        income,
+        expense,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ msg: 'Error generating monthly summary' });
+    res.status(500).json({ success: false, message: 'Error generating monthly summary' });
   }
 };

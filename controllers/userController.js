@@ -39,12 +39,12 @@ const LoginUser = async (req, res) => {
     }
 
     const user = { _id: loggedInUser._id };
-    const token = jwt.sign(user, process.env.SECREATE_KEY, { expiresIn: '2h' });
+    const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '2h' });
 
     res.status(200).send({
       message: "User logged in successfully",
       success: true,
-      token :`Bearer ${token}`
+      token
     });
 
   } catch (error) {
@@ -54,12 +54,26 @@ const LoginUser = async (req, res) => {
 
 const getUserInfo = async (req, res) => {
   try {
-    const loggedUser = await User.findById(req.user._id).select("-password -__v");
-    res.status(200).send({ message: "Got user info", loggedUser });
+    const user = await User.findById(req.user.id).select('id name email');
+
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized', success: false });
+    }
+
+    res.status(200).json({
+      message: 'User info fetched successfully',
+      success: true,
+      loggedUser: user,
+    });
   } catch (error) {
-    res.status(500).send({ error: error.message });
+    res.status(500).json({
+      message: 'Failed to fetch user info',
+      success: false,
+      error: error.message,
+    });
   }
 };
+
 
 
 module.exports = {

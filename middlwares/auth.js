@@ -1,18 +1,21 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const User = require('../models/userModel'); // your user model
 
-exports.auth = (req, res, next) => {
-  const token = req.headers.authorization;
-
-  if (!token || !token.startsWith('Bearer ')) {
-    return res.status(401).send({ message: "Unauthorized", success: false });
-  }
-
+exports.auth = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token.split(' ')[1], process.env.SECREATE_KEY);
-    req.user = decoded;
+    const authHeader = req.headers.authorization;
+    console.log("Auth header:", authHeader); // <--- debug
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    console.log("Token to verify:", token); // <--- debug
+
+     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;  // Or req.user = decoded.id if your token stores id
     next();
-  } catch (error) {
-    res.status(401).send({ message: "Invalid token", success: false });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
   }
 };
